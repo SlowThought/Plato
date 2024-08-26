@@ -1,0 +1,84 @@
+/* [wxMaxima batch file version 1] [ DO NOT EDIT BY HAND! ]*/
+/* [ Created with wxMaxima version 23.05.1 ] */
+/* [wxMaxima: comment start ]
+Spherical trig for Plato project. Small a, b, c represent arc lengths in radians. Capital C is north pole corner in radians
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+a: pi/2 - theta_i;
+b: pi/2 - theta_j;
+C: phi_j - phi_i;
+
+
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: comment start ]
+
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: comment start ]
+We use the cosine rule to find cosine c.
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+cos_c: cos(a)*cos(b) + sin(a)*sin(b)*cos(C);
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: comment start ]
+We note that sin(x - pi/2) == cos(x), and so forth (CHECK THIS FOR SIGN ERRORS);
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: comment start ]
+
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+cos_c: subst( cos(theta_i), sin(theta_i-pi/2), cos_c);
+cos_c: subst( cos(theta_j), sin(theta_j-pi/2), cos_c);
+cos_c: subst( sin(theta_i), cos(theta_i-pi/2), cos_c);
+cos_c: subst( sin(theta_j), cos(theta_j-pi/2), cos_c);
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: comment start ]
+We use the half angle formula to find sin(c/2). That is half the chord between the particles, and so we get the distance between particles. Binning these values will help with drawing lines connecting particles.
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+R_ij: 2*sqrt((1-cos_c)/2);
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: comment start ]
+Analogous (sp?) to gravitational potential, P is proportional to 1/R. We sum the potential of all the possible particle pairs
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+P: sum( sum ((1/R_ij), j, i, n), i, 0, n-1);
+/* [wxMaxima: input   end   ] */
+
+
+/* [wxMaxima: comment start ]
+We take the derivatives of φ and θ for use in Lagrangian equation
+   [wxMaxima: comment end   ] */
+
+
+/* [wxMaxima: input   start ] */
+derivative(P, phi_i);
+derivative(P,theta_i);
+
+/* [wxMaxima: input   end   ] */
+
+
+
+/* Old versions of Maxima abort on loading files that end in a comment. */
+"Created with wxMaxima 23.05.1"$

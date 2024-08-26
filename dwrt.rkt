@@ -1,6 +1,8 @@
 #lang racket
 #| dwrt.rkt -- Macros for finding derivatives. Not complete, just in context of Plato project
-   Written by Patrick King, all rights reserved |#
+   Written by Patrick King, all rights reserved
+
+  DEVELOPMENT ON HOLD. Meant to speed up development, but hung up on derivative of negatives. Bah. |#
 
 (provide dwrt)
 (require (for-syntax syntax/identifier syntax/parse)
@@ -22,17 +24,20 @@
      (if (eq? (identifier->symbol #'x)
               (identifier->symbol #'y))
          #'1 #'0)]
+    ; Addition   
+    [(dwrt x (+ y:expr)) #'(dwrt x y)]
+    [(dwrt x (+ y:expr z:expr ...))
+     #'(+ (dwrt x y)(dwrt x (+ z ...)))]
+    ; Subtraction/negation
+    [(dwrt x (- y))
+     #'(- (dwrt x y))]
+    [(dwrt x (- y z ...))
+     #'(dwrt x (- y (+ z ...)))]
+    [(dwrt x (- y z))
+     #'(- (dwrt x y) (dwrt x z))]
+    
     
     ))
-;;     ; Addition
-;;     [(dwrt x (+ y z ...))
-;;      #'(+ (dwrt x (+ z ...))(dwrt x y))]
-;;     [(dwrt x (+ y)) #'(dwrt x y)]
-;;     ; Subtraction/negation
-;;     [(dwrt x (- y z ...))
-;;      #'(- (dwrt x y)(dwrt x (+ z ...)))]
-;;     [(dwrt x (- y))
-;;      #'(- (dwrt x y))]
 ;;     ; Multiplication
 ;;     [(dwrt x (* y z ...))
 ;;      #'(+ (* (dwrt x y) z ...) (* y (dwrt x (* z ...))))]
@@ -52,15 +57,23 @@
 ;;     [(dwrt x (sqrt y))
 ;;      #'(/ (dwrt x y) -2 y (sqrt y))]
 
+;; (define-syntax-rule (minus x ...) (- x ...))
 
 (module* test #f
+   (require test-engine/racket-tests)
   ;; Variables
   (define x 9)
   (define y x)
-  ; Derivative of self should be 1
-  (writeln (dwrt x x))
-  ; Derivative of constants or independent variables should be 0
-  (writeln (dwrt x 1))
-  (writeln (dwrt x y)))
-  ; Derivative of sums, is ANY of this working?
-  ;(writeln (dwrt x (+ x y 2))))
+;;   ; Derivative of self should be 1
+;;   (check-expect (dwrt x x) 1) 
+;;   ; Derivative of constants or independent variables should be 0
+;;   (check-expect (dwrt x 1) 0)
+;;   (check-expect (dwrt x y) 0)
+;;   ; Derivative of sums
+;;   (check-expect (dwrt x (+ x y 2)) 1)
+;;   (check-expect (dwrt x (+ y x x 3)) 2)
+  ; differences
+;;   (check-expect (dwrt x (- y)) 0)
+;;   (check-expect (dwrt x (- y x)) -1)
+  (check-expect (dwrt x (- x)) -1)
+  (test))
