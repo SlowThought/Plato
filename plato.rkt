@@ -4,32 +4,56 @@
    stablize.
    Written by Patrick King, all rights reserved |#
 
-(provide push-random-particle push-particle pop-last-particle #|update-particles!|# x y z)
+(provide push-random-particle! push-particle! pop-particle! #|update-particles!|# x y z)
+        ; (for-syntax for-each-particle for-each-pair)
 
 ;;; Each particle is constrained to the unit sphere. Its position is represented by the angles ϕ (think
 ;;; longitude) and θ (think latitude).
+;;; The particles' state is held in vectors. Constructors and accessors follow
 
-(define Xs null)
-(define Vs null)
 (define n_particles 0)
+(define max_particles 128)
 
-(define (push-random-particle)
-  (set! Xs (cons (cons (* (random) 2. pi) (* (- (random) .5) pi)) Xs))
-  (set! Vs (cons (cons (* (- (random) .5) .1) (* (- (random) .5) .1)) Vs))
-  (set! n_particles (add1 n_particles)))
+(define (plato-vector)
+  (make-vector max_particles 0.))
 
-(define (push-particle ϕ θ) ; A specific position, zero velocity
-  (set! Xs (cons (cons ϕ θ) Xs))
-  (set! Vs (cons (cons 0. 0.) Vs))
-  (set! n_particles (add1 n_particles)))
+(define ϕs (plato-vector))
+(define θs (plato-vector))
+(define ϕds (plato-vector)) ; phi "dots", time derivative of phis
+(define θds (plato-vector))
 
-(define (pop-last-particle)
-  (if (= n_particles 0)
-      (error "pop-last-particle: no particles to pop!")
+(define (vector-accessor v)
+  (λ (i)
+    (if (and (< i n_particles)
+             (>= i 0))
+        (vector-ref v i)
+        (error "index out of range"))))
+
+(define ϕ (vector-accessor ϕs))
+(define θ (vector-accessor θs))
+(define ϕd (vector-accessor ϕds))
+(define θd (vector-accessor θds))
+
+(define (push-random-particle!)
+  (cond [(< n_particles max_particles) ; if full, silent fail - sim keeps running
+         (vector-set! ϕs n_particles (* 2 pi (random)))
+         (vector-set! θs n_particles (* (/ pi 2) (- (random) .5)))
+         (vector-set! ϕds n_particles (* (- (random) .5) .33))
+         (vector-set! θds n_particles (* (- (random) .5) .33))
+         (set! n_particles (add1 n_particles))]))
+
+(define (push-particle! ϕ θ) ; A specific position, zero velocity
+  (if (< n_particles max_particles)
       (begin
-        (set! Xs (cdr Xs))
-        (set! Vs (cdr Vs))
-        (set! n_particles (sub1 n_particles)))))
+        (vector-set! ϕs n_particles ϕ)
+        (vector-set! θs n_particles θ)
+        (vector-set! ϕds n_particles 0.)
+        (vector-set! θds n_particles 0.)
+        (set! n_particles (add1 n_particles)))
+      (error "push-particle!: already at max particles")))
+
+(define (pop-particle!)
+  (set! n_particles (max 0 (sub1 n_particles))))
 
 ;;; Euler angles are (among?) the most compact representation. We need Cartesian coordinates for plotting
 (define (x ϕ θ)
@@ -39,24 +63,55 @@
 (define (z θ)
   (sin θ))
 
-;;; Above structures were designed to ease UI implementation. We will want to cast them for computational
-;;; convenience/clarity. All lists to vectors, variables broken out. This may break when I try to update
-;;; above lists.
-(define-syntax-rule (cast-lists-to-vectors body)
-  (begin
-    (define ϕ (list->vector (map car Xs)))
-    (define θ (list->vector (map cdr Xs)))
-    ; Expand later for Vs
-    body))
-(cast-lists-to-vector "test")
-;;; The distance (radius) between particles is figured using cosine rule and half angle room
-(define (R i j)
-  (cast-lists-to-vectors
-   (* (sqrt 2.)
-      (sqrt (- 1.
-               (* (sin (vector-ref θ i))
-                  (sin (vector-ref θ j)))
-               (* (cos (- (vector-ref ϕ j)
-                          (vector-ref ϕ i)))
-                  (cos (vector-ref θ i))
-                  (cos (vector-ref θ j))))))))
+;;; Potential energy depends on the distance between pairs of particles
+
+;; Consider points N, I, J, where N is at the "North Pole", and I and J are random points on
+;; the sphere. We use the cosine rule of spherical trig to find the distance between I and J,
+;; which is defined here as "c" (opposite the corner angle C = ϕj-ϕi at point N. We actually never
+;; use c directly. We then define derivatives to be used in Lagrangian later.
+(define (cosc i j)
+    (+ (* (sin (θ i)) (sin (θ j)))
+       (* (cos (θ i)) (cos (θ j)) (cos (- (ϕ j) (ϕ i))))))
+(define (dcosc/dϕi i j)
+  (* (cos (θ i)) (cos (θ j)) (sin (- (ϕ j) (ϕ i)))))
+(define (dcosc/dθi i j)
+  (- (* (cos (θ i)) (sin (θ j)))
+     (* (sin (θ i)) (cos (θ j)) (cos (- (ϕ j) (ϕ i))))))
+
+;; The distance between a pair of particles is the chord of the angle c. We solve using Pythagoras.
+;; Note below is off by about a factor of two. I dropped the 2s because in the end our energy units
+;; are arbitrary, so why carry the constants? The "about" is to avoid divide by zero when particles
+;; collide (they shouldn't, but they will).
+(define One 1.00000000001)
+(define (chord cosc)
+  (sqrt (- One cosc)))
+(define (dchord/dcosc cosc)
+  (/ -1. (chord cosc)))
+
+;; The potential energy of a pair of particles is proportional to the inverse of their distance
+;; apart (analogous to gravitational, electrical fields).
+
+(define (P)
+  (for*/sum [(i (in-range 0 (sub1 n_particles)))
+             (j (in-range (add1 i) n_particles))]
+    (/ (chord (cosc i j)))))
+
+; Combine next 2 for efficiency?
+(define (dP/dθi i)
+  (- (for*/sum [(j (in-range (add1 i) n_particles))]
+       (let*[(cosc (cosc i j))
+             (chord (chord cosc))]
+         (* (/ (dchord/dcosc cosc)
+               chord chord)
+            (dcosc/dθi i j))))))
+(define (dP/dϕi i)
+  (- (for*/sum [(j (in-range (add1 i) n_particles))]
+       (let*[(cosc (cosc i j))
+             (chord (chord cosc))]
+         (* (/ (dchord/dcosc cosc)
+               chord chord)
+            (dcosc/dϕi i j))))))
+
+(define (dPs i)
+  (values (dP/dϕi i) (dP/dθi i)))
+          
