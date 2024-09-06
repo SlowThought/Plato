@@ -55,7 +55,7 @@
 (define (pop-particle!)
   (set! n_particles (max 0 (sub1 n_particles))))
 
-;;; Euler angles are (among?) the most compact representation. We need Cartesian coordinates for plotting
+;;; Euler angles are (among?) the most compact representation(s?). We need Cartesian coordinates for plotting
 (define (x ϕ θ)
   (* (cos ϕ) (cos θ)))
 (define (y ϕ θ)
@@ -89,12 +89,15 @@
   (/ -1. (chord cosc)))
 
 ;; The potential energy of a pair of particles is proportional to the inverse of their distance
-;; apart (analogous to gravitational, electrical fields).
-
-(define (P)
-  (for*/sum [(i (in-range 0 (sub1 n_particles)))
+;; apart (analogous to gravitational, electrical fields)
+(define-syntax P
+  (syntax-rules ()
+    [(P i j)
+     (/ (chord (cosc i j)))]
+    [(P)
+     (for*/sum [(i (in-range 0 (sub1 n_particles)))
              (j (in-range (add1 i) n_particles))]
-    (/ (chord (cosc i j)))))
+       (P i j))]))
 
 ; Combine next 2 for efficiency?
 (define (dP/dθi i)
@@ -112,6 +115,31 @@
                chord chord)
             (dcosc/dϕi i j))))))
 
+; Interim step. Look into limits/possibilities of for*/sum
 (define (dPs i)
-  (values (dP/dϕi i) (dP/dθi i)))
-          
+  (values (- (for*/sum [(j (in-range (add1 i) n_particles))]
+               (let*[(cosc (cosc i j))
+                     (chord (chord cosc))]
+                 (* (/ (dchord/dcosc cosc)
+                       chord chord)
+                    (dcosc/dθi i j)))))
+          (- (for*/sum [(j (in-range (add1 i) n_particles))]
+               (let*[(cosc (cosc i j))
+                     (chord (chord cosc))]
+                 (* (/ (dchord/dcosc cosc)
+                       chord chord)
+                    (dcosc/dϕi i j)))))))
+
+;;; Kinetic energy depends on the velocity of a single particl. It is simply the traditional 1/2 * m * v^2.
+;;; Here we keep the half, to make the derivatives cleaner. Again, made up world, constants are arbitrary.
+(define-syntax K
+  (syntax-rules ()
+    [(K i)
+     (/ (+ (sqr (ϕd i)) (sqr (θd i))) 2.)]
+    [(K)
+     (for/sum [(i (in-range n_particles))]
+       (K i))]))
+
+;;; Lagrangian
+(define (L)
+  (- (K) (P)))
