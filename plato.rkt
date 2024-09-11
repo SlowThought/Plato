@@ -63,7 +63,7 @@
 (define (z θ)
   (sin θ))
 
-;;; Potential energy depends on the distance between pairs of particles
+;;; A bit of geometry/spherical trig
 
 ;; Consider points N, I, J, where N is at the "North Pole", and I and J are random points on
 ;; the sphere. We use the cosine rule of spherical trig to find the distance between I and J,
@@ -88,49 +88,34 @@
 (define (dchord/dcosc cosc)
   (/ -1. (chord cosc)))
 
-;; The potential energy of a pair of particles is proportional to the inverse of their distance
-;; apart (analogous to gravitational, electrical fields)
+;;; The potential energy of a pair of particles is proportional to the inverse of their distance
+;;; apart (analogous to gravitational, electrical fields)
 (define-syntax P
   (syntax-rules ()
     [(P i j)
-     (/ (chord (cosc i j)))]
+     (if (= i j) 0. ; Else, PE will be tearing particle apart with infinite energy. If rest of
+                    ; implementation is right, this is dead code. Consider inserting error,
+                    ; eventually getting rid of if. Or, keep cheap insurance.
+         (/ (chord (cosc i j))))]
     [(P)
      (for*/sum [(i (in-range 0 (sub1 n_particles)))
              (j (in-range (add1 i) n_particles))]
        (P i j))]))
 
-; Combine next 2 for efficiency?
-(define (dP/dθi i)
-  (- (for*/sum [(j (in-range (add1 i) n_particles))]
-       (let*[(cosc (cosc i j))
-             (chord (chord cosc))]
-         (* (/ (dchord/dcosc cosc)
-               chord chord)
-            (dcosc/dθi i j))))))
-(define (dP/dϕi i)
-  (- (for*/sum [(j (in-range (add1 i) n_particles))]
-       (let*[(cosc (cosc i j))
-             (chord (chord cosc))]
-         (* (/ (dchord/dcosc cosc)
-               chord chord)
-            (dcosc/dϕi i j))))))
-
-; Interim step. Look into limits/possibilities of for*/sum
 (define (dPs i)
-  (values (- (for*/sum [(j (in-range (add1 i) n_particles))]
-               (let*[(cosc (cosc i j))
-                     (chord (chord cosc))]
-                 (* (/ (dchord/dcosc cosc)
-                       chord chord)
-                    (dcosc/dθi i j)))))
-          (- (for*/sum [(j (in-range (add1 i) n_particles))]
-               (let*[(cosc (cosc i j))
-                     (chord (chord cosc))]
-                 (* (/ (dchord/dcosc cosc)
-                       chord chord)
-                    (dcosc/dϕi i j)))))))
+  (let [(dP/dϕi 0.)
+        (dP/dθi 0.)]
+    (for [(j (in-range n_particles))]
+      (cond [(not (= i j))
+             (let* [(cosc (cosc i j))
+                    (chord (chord cosc))
+                    (dP/dchord (/ -1. chord chord))
+                    (dP/dcosc (* dP/dchord (dchord/dcosc cosc)))]
+               (set! dP/dϕi (- dP/dϕi (* dP/dcosc (dcosc/dϕi i j))))
+               (set! dP/dθi (- dP/dθi (* dP/dcosc (dcosc/dθi i j)))))]))
+    (values dP/dϕi dP/dθi)))
 
-;;; Kinetic energy depends on the velocity of a single particl. It is simply the traditional 1/2 * m * v^2.
+;;; Kinetic energy depends on the velocity of a single particle. It is simply the traditional 1/2 * m * v^2.
 ;;; Here we keep the half, to make the derivatives cleaner. Again, made up world, constants are arbitrary.
 (define-syntax K
   (syntax-rules ()
@@ -140,6 +125,14 @@
      (for/sum [(i (in-range n_particles))]
        (K i))]))
 
+(define dK/dϕdi ϕd)
+(define dK/dθdi θd)
+
 ;;; Lagrangian
+; For plots?
 (define (L)
   (- (K) (P)))
+
+;; The Lagrangian payoff!
+(define (dds i) ; double dots, accelerations
+  (- (
