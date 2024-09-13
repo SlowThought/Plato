@@ -4,7 +4,7 @@
    stablize.
    Written by Patrick King, all rights reserved |#
 
-(provide push-random-particle! push-particle! pop-particle! #|update-particles!|# x y z)
+(provide push-random-particle! push-particle! pop-particle! update-particles! x y z)
         ; (for-syntax for-each-particle for-each-pair)
 
 ;;; Each particle is constrained to the unit sphere. Its position is represented by the angles ϕ (think
@@ -135,4 +135,27 @@
 
 ;; The Lagrangian payoff!
 (define (dds i) ; double dots, accelerations
-  (- (
+  (let-values ([(phi_dd theta_dd)(dPs i)])
+    (values (- phi_dd) (- theta_dd))))
+
+;;; Integrate to update
+(define dt (/ 60.))
+(define (update-particles!)
+  (define new-ϕs (plato-vector))
+  (define new-θs (plato-vector))
+  (define new-ϕds (plato-vector))
+  (define new-θds (plato-vector))
+  (for [(i (in-range n_particles))]
+    (let-values ([(phi_dd theta_dd)(dds i)])
+      (vector-set! new-ϕds i (+ (ϕd i) (* phi_dd dt)))
+      (vector-set! new-θds i (+ (θd i) (* theta_dd dt)))
+      (vector-set! new-ϕs i
+                   (+ (ϕ i) (* (ϕd i) dt)
+                      (* 0.5 phi_dd dt dt)))
+      (vector-set! new-θs i
+                   (+ (θ i) (* (θd i) dt)
+                      (* 0.5 theta_dd dt dt)))))
+  (set! ϕs new-ϕs)
+  (set! θs new-θs)
+  (set! ϕds new-ϕds)
+  (set! θds new-θds))
