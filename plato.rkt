@@ -22,7 +22,8 @@
 (define ϕds (plato-vector)) ; phi "dots", time derivative of phis
 (define θds (plato-vector))
 
-(define (vector-accessor v)
+; Syntax required to avoid copying v
+(define-syntax-rule (vector-accessor v)
   (λ (i)
     (if (and (< i n_particles)
              (>= i 0))
@@ -154,8 +155,7 @@
                       (* 0.5 phi_dd dt dt)))
       (vector-set! new-θs i
                    (+ (θ i) (* (θd i) dt)
-                      (* 0.5 theta_dd dt dt)))))
-  (set! ϕs new-ϕs)
-  (set! θs new-θs)
-  (set! ϕds new-ϕds)
-  (set! θds new-θds))
+                      (* 0.5 theta_dd dt dt)))
+  (set!-values (ϕs θs ϕds θds)
+               (values new-ϕs new-θs new-ϕds new-θds)))
+
