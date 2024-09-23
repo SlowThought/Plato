@@ -140,6 +140,29 @@
     (values (- phi_dd) (- theta_dd))))
 
 ;;; Integrate to update
+;; Helper functions to keep angles bounded
+(define (normalize-phi phi)
+  (if (and (>= phi 0.)
+           (< phi (* 2. pi)))
+      phi
+      (if (< phi 0.)
+          ; We recurse in case we took a huge acceleration hit or
+          ; somehow else made multiple circles
+          (normalize-phi (+ phi (* 2. pi)))
+          ; phi >= 2 * pi
+          (normalize-phi (- phi (* 2. pi))))))
+(define (normalize-theta theta)
+  ; To avoid interactions w/ phi, we loosen the bounds on theta
+  ; An example of the quirks of Euler angles
+  (if (and (>= theta (- pi))
+           (< theta pi))
+      theta
+      (if (< theta (- pi 2.))
+          (normalize-theta (+ theta (* 2. pi)))
+          ; theta >= 2 * pi
+          (normalize-theta (- theta (* 2. pi))))))
+
+;; Roughly time per clock tick
 (define dt (/ 60.))
 (define (update-particles!)
   (define new-ϕs (plato-vector))
@@ -151,11 +174,14 @@
       (vector-set! new-ϕds i (+ (ϕd i) (* phi_dd dt)))
       (vector-set! new-θds i (+ (θd i) (* theta_dd dt)))
       (vector-set! new-ϕs i
-                   (+ (ϕ i) (* (ϕd i) dt)
-                      (* 0.5 phi_dd dt dt)))
+                   (normalize-phi
+                    (+ (ϕ i) (* (ϕd i) dt)
+                       (* 0.5 phi_dd dt dt))))
       (vector-set! new-θs i
-                   (+ (θ i) (* (θd i) dt)
-                      (* 0.5 theta_dd dt dt)))
+                   (normalize-theta
+                    (+ (θ i) (* (θd i) dt)
+                       (* 0.5 theta_dd dt dt))))))
   (set!-values (ϕs θs ϕds θds)
                (values new-ϕs new-θs new-ϕds new-θds)))
 
+;(define (physics-parameter-dialog) ...
