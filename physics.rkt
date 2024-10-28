@@ -4,7 +4,7 @@
    stablize.
    Written by Patrick King, all rights reserved |#
 
-(provide n_particles push-random-particle! push-particle! pop-particle! update-particles! x y z ϕ θ)
+(provide n_particles push-random-particle! push-particle! pop-particle! update-particles! x y z dt ϕ θ)
         ; (for-syntax for-each-particle for-each-pair)
 
 ;;; Each particle is constrained to the unit sphere. Its position is represented by the angles ϕ (think
@@ -38,9 +38,9 @@
 (define (push-random-particle!)
   (cond [(< n_particles max_particles) ; if full, silent fail - sim keeps running
          (vector-set! ϕs n_particles (* 2 pi (random)))
-         (vector-set! θs n_particles (* (/ pi 2) (- (random) .5)))
-         (vector-set! ϕds n_particles (* (- (random) .5) .33))
-         (vector-set! θds n_particles (* (- (random) .5) .33))
+         (vector-set! θs n_particles (* pi (- (random) .5)))
+         (vector-set! ϕds n_particles (* (- (random) .5) .67))
+         (vector-set! θds n_particles (* (- (random) .5) .67))
          (set! n_particles (add1 n_particles))]))
 
 (define (push-particle! ϕ θ) ; A specific position, zero velocity
@@ -97,7 +97,7 @@
      (if (= i j) 0. ; Else, PE will be tearing particle apart with infinite energy. If rest of
                     ; implementation is right, this is dead code. Consider inserting error,
                     ; eventually getting rid of if. Or, keep cheap insurance.
-         (/ (chord (cosc i j))))]
+         (/(chord (cosc i j))))]
     [(P)
      (for*/sum [(i (in-range 0 (sub1 n_particles)))
              (j (in-range (add1 i) n_particles))]
@@ -134,9 +134,17 @@
 (define (L)
   (- (K) (P)))
 
+;; Dissipation ie friction shows up on RHS of Lagrange eq. We assume Rayleigh (quadratic)
+(define dissapation #t)
+(define Cd 1.)
+
 ;; The Lagrangian payoff!
 (define (dds i) ; double dots, accelerations
   (let-values ([(phi_dd theta_dd)(dPs i)])
+    (cond [dissapation
+           (let [(norm (sqrt (+ (sqr (ϕd i))(sqr (θd i)))))]
+             (set! phi_dd (+ phi_dd (* Cd (ϕd i) norm)))
+             (set! theta_dd (+ theta_dd (* Cd (θd i) norm))))])        
     (values (- phi_dd) (- theta_dd))))
 
 ;;; Integrate to update
