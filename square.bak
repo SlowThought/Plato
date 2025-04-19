@@ -1,0 +1,21 @@
+#lang racket/gui
+#| square.rkt -- Top module for the plato project, generating Platonic solids using Lagrangian mechanics
+   Written by Patrick King, all rights reserved |#
+
+(define (square-pane parent)
+  (define window-size (if parent
+                          (min (send parent get-width)
+                               (send parent get-height))
+                          300))
+  (new pane%
+       [parent parent]
+       [width  window-size]
+       [height window-size]))
+;;(define pp (square-panel lhs)); particle panel
+
+;; (define pd (new canvas%
+;;                 [parent pp]
+;;                 [paint-callback
+;;                  (λ (canvas dc)
+;;                    (draw-pict (draw-particles-2d lhs) dc 0 0))]))
+;; 

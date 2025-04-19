@@ -63,12 +63,12 @@
 (define sim void) ; this will be a thread
 
 (define (run-sim!) ; the code in the thread
-  (let [(f (future (λ () (update-particles!))))
-        (g (future (λ () (sleep (/ 60.)))))]
+  (let [(f (future (update-particles!)))
+        (g (future (sleep (/ 60.))))]
     (touch f)
     (touch g)
-    (send lhs show #t))
-  (cond [running (run-sim!)]))
+    (send top show #t)
+    (cond [running (run-sim!)])))
 
 (define run-button (new button%
                         [parent rhs]

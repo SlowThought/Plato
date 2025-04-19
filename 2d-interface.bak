@@ -5,7 +5,7 @@
 (provide draw-particles-2d)
 
 ;;; View parameters
-(define vertex-size 10); At z == 0. Observer assumed at z == 4. Size will scale w/ z
+(define vertex-size 10); At z == 0. Observer assumed at z == 2. Size will scale w/ z
 (define vertices? #t)
 (define edges? #f)
 (define faces? #f)
@@ -29,7 +29,7 @@
             (circle (diameter size vertex-size) #:border-width unit-circle-thickness)))
 
 (define (draw-vertex x y z frame size)
-  (define dia (/(* 2 vertex-size)(- 4 z))) ; Scale size for z distance
+  (define dia (/(* 2 vertex-size)(- 2 z))) ; Scale size for z distance
   (define mag (/ (diameter size vertex-size) 2)) ; Scale (magnify) pixel coordinates
   (define l (- (+ (/ size 2) (* mag x)) (/ dia 2)))
   (define m (- (- (/ size 2) (* mag y)) (/ dia 2)))

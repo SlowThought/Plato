@@ -220,7 +220,7 @@
 
 (define (update-particles!)
   (define-values (dP/dϕs dP/dθs) (build-gradient))
-  (define h (/ 0.1 (add1 n_particles)))
+  (define h (/ 0.1( add-one n_particles)))
   (for [(i (in-range n_particles))]
     ; it seems that the following "+" should be "-". Offsetting another sign error elsewhere?
     (vector-set! ϕs i
